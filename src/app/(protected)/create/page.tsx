@@ -5,6 +5,8 @@ import React from "react";
 import { useForm } from "react-hook-form";
 import { api } from './../../../trpc/react';
 import { toast } from "sonner";
+import { z } from "zod";
+import useRefetch from './../../../hooks/use-refetch';
 
 
 type FormInput = {
@@ -15,23 +17,30 @@ type FormInput = {
 const CreatePage = () => {
   const { register, handleSubmit, reset } = useForm<FormInput>();
   const createProject= api.project.createProject.useMutation();
-    function onSubmit(data:FormInput) {
-      
-        createProject.mutate({
-          githubUrl: data.repoUrl,
-          name:data.projectName,
-          githubToken:data.githubToken
-        },{
-          onSuccess:()=>{
-            toast.success('Project creation successfull')
-            reset()
-          },
-          onError:()=>{
-            toast.error('Failed to crate project')
-          }
-        })
-        return true
+  const refetch=useRefetch()
+  // src/app/(protected)/create/page.tsx
+// src/app/(protected)/create/page.tsx
+function onSubmit(data:FormInput) {
+  createProject.mutate({
+    githubUrl: data.repoUrl,
+    name: data.projectName,
+    githubToken: data.githubToken
+  }, {
+    onSuccess: () => {
+      toast.success('Project creation successful')
+      refetch()
+      reset()
+    },
+    onError: (error) => {
+      // If user not found, redirect to sync-user page
+      if (error.message.includes('user not found')) {
+        window.location.href = '/sync-user';
+        return;
+      }
+      toast.error('Failed to create project: ' + error.message)
     }
+  })
+}
   return (
     <div className="flex h-full items-center justify-center gap-12">
       <img src="/createImg.svg" className="h-56  w-auto" />
@@ -66,7 +75,7 @@ const CreatePage = () => {
                
                 />
                 <div className="h-4"></div>
-                <Button type="submit">
+                <Button type="submit" disabled={createProject.isPending}>
                     Create Project
                 </Button>
             </form>
